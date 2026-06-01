@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Memento Mori
 
-# Run and deploy your AI Studio app
+A life visualization tool that maps how your daily habits consume your finite time. Enter your birthday, configure how many hours per day you spend on sleep, work, eating, commuting, and social media — then watch a proportional grid fill with how those commitments accumulate over a lifetime.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/60d7cf65-72c7-49cc-be36-14bb86e7e60e
+- **Life Tapestry Grid** — visual grid (5×5 to 20×20) where each cell represents a proportional slice of your life, colored by category
+- **Daily Hours Allocation** — sliders for sleep, work (with configurable retirement age), eating, commuting, and social media
+- **Custom Habits** — add and name your own daily habit categories with custom colors
+- **Whole Lifespan Ledger** — summary cards showing years and percentage allocated to each category
+- **Overcommitment Warning** — flags when daily hour totals exceed 24 hours and scales proportionally
+- **Contemplative Quotes** — rotating footer quotes
 
-## Run Locally
+## Stack
 
-**Prerequisites:**  Node.js
+- React 19 + TypeScript
+- Vite 6
+- Tailwind CSS v4
+- Motion (Framer Motion) for animations
+- Lucide React for icons
 
+## Getting Started
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+```
+
+App runs at `http://localhost:3000`.
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start dev server on port 3000 |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Type-check with `tsc --noEmit` |
+
+## Environment
+
+Copy `.env.example` to `.env` and fill in any required API keys before running.
