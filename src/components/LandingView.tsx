@@ -1,11 +1,30 @@
-import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Compass, Leaf } from 'lucide-react';
 
 interface LandingViewProps {
   onBegin: () => void;
 }
 
+const INTRO_PROMPTS = [
+  'Is there a dream you quietly carry?',
+  'How many hours remain to live it?',
+];
+
 export default function LandingView({ onBegin }: LandingViewProps) {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 2800);
+    // +1000ms vs t1's spacing: the 2nd prompt only starts entering after the
+    // 1st finishes its 1s exit, so it needs the extra time for an equal hold.
+    const t2 = setTimeout(() => setPhase(2), 6600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center bg-[#fbfaf7] text-[#2c2a29] overflow-hidden px-6">
       {/* Background Zen Enso (circle of life and emptiness) representing natural completeness */}
@@ -26,8 +45,28 @@ export default function LandingView({ onBegin }: LandingViewProps) {
         <Leaf className="w-10 h-10 text-[#6c7b64] stroke-[1]" />
       </motion.div>
 
-      {/* Main Calligraphy-spirited Content */}
-      <div className="z-10 max-w-2xl text-center space-y-10 select-none">
+      {/* Intro prompts fade in/out, then the main content enters — mode="wait"
+          ensures each element fully exits before the next mounts. */}
+      <AnimatePresence mode="wait">
+        {phase < 2 ? (
+          <motion.p
+            key={phase}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 0.75, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 1, ease: 'easeInOut' }}
+            className="z-10 font-serif italic text-xl sm:text-2xl md:text-3xl text-[#595757] font-light tracking-wide max-w-xl text-center px-4 select-none"
+          >
+            {INTRO_PROMPTS[phase]}
+          </motion.p>
+        ) : (
+        <motion.div
+          key="main"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, ease: 'easeInOut' }}
+          className="z-10 max-w-2xl text-center space-y-10 select-none"
+        >
         <div className="space-y-4">
           <motion.div
             initial={{ opacity: 0 }}
@@ -39,9 +78,9 @@ export default function LandingView({ onBegin }: LandingViewProps) {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, letterSpacing: "0.15em", y: 15 }}
-            animate={{ opacity: 0.95, letterSpacing: "0.22em", y: 0 }}
-            transition={{ duration: 2.5, ease: "easeInOut" }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 0.95, y: 0 }}
+            transition={{ duration: 1, ease: "easeInOut" }}
             className="font-serif text-4xl sm:text-6xl md:text-7xl font-extralight tracking-[0.22em] text-[#2c2a29]"
             id="landing-title"
           >
@@ -57,15 +96,6 @@ export default function LandingView({ onBegin }: LandingViewProps) {
             “Mono no aware” — beautiful awareness of transience.
           </motion.p>
         </div>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.5 }}
-          transition={{ delay: 2, duration: 2 }}
-          className="text-xs font-sans font-light tracking-[0.18em] uppercase text-[#73706c] max-w-sm mx-auto leading-relaxed border-t border-[rgba(44,42,41,0.08)] pt-6"
-        >
-          An interactive, pristine life tapestry to guide you toward deliberate days and quiet focus.
-        </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -83,7 +113,9 @@ export default function LandingView({ onBegin }: LandingViewProps) {
             </span>
           </button>
         </motion.div>
-      </div>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Subtle bottom accent representing zen dry garden raking */}
       <motion.div
