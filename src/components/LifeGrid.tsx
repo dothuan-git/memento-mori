@@ -40,16 +40,17 @@ export default function LifeGrid({
     const targets = container.querySelectorAll<HTMLElement>('.grid-cell-fill');
     if (!targets || targets.length === 0) return;
 
-    // A change to cell count / lifespan / age remaps every cell — replay from scratch.
-    const layoutKey = `${squaresCount}|${lifespan}|${age}`;
+    // A change to cell count / lifespan invalidates per-cell indices — replay from scratch.
+    // age is intentionally excluded so age changes append via the per-cell delta below.
+    const layoutKey = `${squaresCount}|${lifespan}`;
     if (layoutKey !== prevLayoutRef.current) {
       prevHeightsRef.current = [];
       prevLayoutRef.current = layoutKey;
     }
 
     // Pouring water sequence effect!
-    // e.g. for 100 squares, total duration is ~1.5 seconds, meaning ~15ms per square.
-    const singleDuration = Math.max(8, Math.min(150, 1500 / squaresCount));
+    // e.g. for 100 squares, total duration is ~7 seconds, meaning ~70ms per square.
+    const singleDuration = Math.max(35, Math.min(500, 7000 / squaresCount));
 
     const prevHeights = prevHeightsRef.current;
     const changed: HTMLElement[] = [];
@@ -236,7 +237,7 @@ export default function LifeGrid({
                 }}
                 className={`aspect-square w-full rounded-[4px] relative cursor-pointer group transition-all duration-300 border border-[#2c2a29]/15 bg-[#2c2a29]/5 hover:border-[#2c2a29]/30 ${
                   isNow ? 'ring-2 ring-[#c8563f] ring-offset-2 ring-offset-[#fbfaf7] z-25' : ''
-                } ${isPouringCell ? 'ring-1 ring-[#c8563f]/50 scale-[1.03] z-25' : ''}`}
+                }`}
                 id={`grid-cell-${idx}`}
                 title={`Square ${idx + 1}: Ages ${cell.startAge.toFixed(1)} – ${cell.endAge.toFixed(1)}`}
               >
@@ -251,12 +252,7 @@ export default function LifeGrid({
                   }}
                 />
 
-                {/* Mild highlight glow if currently being updated */}
-                {isPouringCell && (
-                  <div className="absolute inset-0 rounded-[4px] border border-[#c8563f]/40 bg-[#c8563f]/5 pointer-events-none z-20 animate-pulse" />
-                )}
-
-                {/* Now square indicator highlight */}
+{/* Now square indicator highlight */}
                 {isNow && (
                   <div className="absolute inset-0 rounded-[4px] border border-[#c8563f] animate-[pulse_1.5s_infinite] pointer-events-none z-30" />
                 )}

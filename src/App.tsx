@@ -62,6 +62,13 @@ export default function App() {
   // Active pouring state to fuel the dynamic grid waves when sliders slide
   const [activePouringField, setActivePouringField] = useState<string | null>(null);
 
+  // Stable age: only recomputes when birthday/lifespan change, so slider edits
+  // don't jitter it via new Date() on every recompute.
+  const age = useMemo(
+    () => (birthday ? Math.min(lifespan, calculateAge(birthday)) : 0),
+    [birthday, lifespan]
+  );
+
   // Keys of editable categories in order of last edit (least-recent first, most-recent last).
   const [editOrder, setEditOrder] = useState<string[]>([]);
 
@@ -90,20 +97,20 @@ export default function App() {
 
   // Proportional math calculation core (LOCKED CLOSED-LOOP SYSTEM)
   const stats = useMemo<LifespanStats>(() => {
-    const age = birthday ? Math.min(lifespan, calculateAge(birthday)) : 0;
     const totalDays = lifespan * 365.25;
     const totalHours = totalDays * 24;
 
-    // 1. Sleep (whole life deduction)
-    const sleepHoursTotal = totalDays * sleepHours;
+    // 1. Past — the entire already-lived span, including its sleep.
+    //    Past time is immutable, so the sleep slider never retroactively carves it.
+    const pastHoursTotal = age * 365.25 * 24;
 
-    // 2. Waking past (already lived waking hours, excluding past sleep)
-    const wakingPastHoursTotal = age * 365.25 * (24 - sleepHours);
-
-    // 3. Remaining future waking time capacity
+    // 2. Remaining future capacity
     const remainingYears = Math.max(0, lifespan - age);
     const remainingDays = remainingYears * 365.25;
     const remainingWakingHours = remainingDays * (24 - sleepHours);
+
+    // 3. Sleep (future only — subtracted from the remaining span, not the past)
+    const sleepHoursTotal = remainingDays * sleepHours;
 
     // 4. Future Career deduction (capped by retirement age)
     const yearsToRetire = Math.max(0, Math.min(lifespan, retirementAge) - age);
@@ -159,7 +166,7 @@ export default function App() {
 
     // Compute percentages of total lifetime
     const pctSleep = (sleepHoursTotal / totalHours) * 100;
-    const pctWakingPast = (wakingPastHoursTotal / totalHours) * 100;
+    const pctPast = (pastHoursTotal / totalHours) * 100;
     const pctWork = (adjWorkHours / totalHours) * 100;
     const pctEating = (adjEatingHours / totalHours) * 100;
     const pctCommute = (adjCommuteHours / totalHours) * 100;
@@ -176,8 +183,8 @@ export default function App() {
 
     // Construct sequential lists containing detailed metadata (highly distinguishable premium Scandinavian Mineral palette colors)
     const categoriesList = [
-      { key: 'sleep', name: 'Sleep', color: '#5B7B9C', percentage: pctSleep, originalHours: sleepHours, desc: 'Projected lifetime sleep (past & future)' },
-      { key: 'past', name: 'Waking Past', color: '#3E4A56', percentage: pctWakingPast, originalHours: 24 - sleepHours, desc: 'Active waking portion of life already lived' },
+      { key: 'sleep', name: 'Sleep', color: '#5B7B9C', percentage: pctSleep, originalHours: sleepHours, desc: 'Projected sleep across your remaining life' },
+      { key: 'past', name: 'Life Elapsed', color: '#3E4A56', percentage: pctPast, originalHours: 24, desc: 'Entire span already lived, including its sleep' },
       { key: 'work', name: 'Projected Work', color: '#D97E5C', percentage: pctWork, originalHours: workHours, desc: `Future career output until retirement target age ${retirementAge}` },
     ];
 
@@ -248,7 +255,7 @@ export default function App() {
       activeCategories,
       totalHours
     };
-  }, [birthday, lifespan, sleepHours, retirementAge, workHours, eatHours, socialHours, commuteHours, customHabits, editOrder]);
+  }, [age, lifespan, sleepHours, retirementAge, workHours, eatHours, socialHours, commuteHours, customHabits, editOrder]);
 
   // Action to append custom categories
   const handleAddCustomHabit = () => {
