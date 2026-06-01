@@ -62,6 +62,17 @@ export default function App() {
   // Active pouring state to fuel the dynamic grid waves when sliders slide
   const [activePouringField, setActivePouringField] = useState<string | null>(null);
 
+  // Keys of editable categories in order of last edit (least-recent first, most-recent last).
+  const [editOrder, setEditOrder] = useState<string[]>([]);
+
+  const touch = (key: string) =>
+    setEditOrder(prev => [...prev.filter(k => k !== key), key]);
+
+  const updateWork = (val: number) => {
+    setWorkHours(parseFloat(val.toFixed(1)));
+    touch('work');
+  };
+
   // Reset to original brand new starting state (all completely un-filled)
   const handleReset = () => {
     setBirthday('');
@@ -74,6 +85,7 @@ export default function App() {
     setSocialHours(0);
     setCustomHabits([]);
     setGridSize(10);
+    setEditOrder([]);
   };
 
   // Proportional math calculation core (LOCKED CLOSED-LOOP SYSTEM)
@@ -187,10 +199,23 @@ export default function App() {
       { key: 'free', name: 'Remaining Free Time', color: 'transparent', percentage: pctFree, originalHours: 0, desc: 'Pure uncommitted potential. Write your destiny here.' }
     );
 
+    // Reorder by most-recent edit: Past pinned first, Free pinned last,
+    // editable categories sorted by their position in editOrder (least-recent first).
+    const orderedList = (() => {
+      const indexed = categoriesList.map((c, i) => ({ c, i }));
+      const rank = ({ c, i }: { c: typeof categoriesList[0]; i: number }) => {
+        if (c.key === 'past') return -1;
+        if (c.key === 'free') return Number.MAX_SAFE_INTEGER;
+        const r = editOrder.indexOf(c.key);
+        return r === -1 ? 1e6 + i : r;
+      };
+      return indexed.sort((a, b) => rank(a) - rank(b)).map(x => x.c);
+    })();
+
     // Compute active items
     const activeCategories: any[] = [];
     let cumulative = 0;
-    categoriesList.forEach((cat) => {
+    orderedList.forEach((cat) => {
       if (cat.percentage > 0) {
         activeCategories.push({
           ...cat,
@@ -219,11 +244,11 @@ export default function App() {
       freeHoursTotal,
       isOverworked,
       scaleFactor,
-      categoriesList,
+      categoriesList: orderedList,
       activeCategories,
       totalHours
     };
-  }, [birthday, lifespan, sleepHours, retirementAge, workHours, eatHours, socialHours, commuteHours, customHabits]);
+  }, [birthday, lifespan, sleepHours, retirementAge, workHours, eatHours, socialHours, commuteHours, customHabits, editOrder]);
 
   // Action to append custom categories
   const handleAddCustomHabit = () => {
@@ -247,6 +272,7 @@ export default function App() {
 
   const handleUpdateCustomHabitHours = (id: string, hours: number) => {
     setCustomHabits(prev => prev.map(h => h.id === id ? { ...h, hours } : h));
+    touch(id);
   };
 
   const handleUpdateCustomHabitColor = (id: string, color: string) => {
@@ -255,6 +281,7 @@ export default function App() {
 
   const handleDeleteCustomHabit = (id: string) => {
     setCustomHabits(prev => prev.filter(h => h.id !== id));
+    setEditOrder(prev => prev.filter(k => k !== id));
   };
 
   if (view === 'landing') {
@@ -409,7 +436,7 @@ export default function App() {
                   max={12}
                   step={0.1}
                   color="#5B7B9C"
-                  onHoursChange={setSleepHours}
+                  onHoursChange={(h) => { setSleepHours(h); touch('sleep'); }}
                   onStartPour={() => setActivePouringField('sleep')}
                   onEndPour={() => setActivePouringField(null)}
                   impactText={`Occupies ${(sleepHours / 24 * 100).toFixed(0)}% of your whole projected lifetime`}
@@ -455,10 +482,7 @@ export default function App() {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => {
-                            const val = Math.max(0, workHours - 0.5);
-                            setWorkHours(parseFloat(val.toFixed(1)));
-                          }}
+                          onClick={() => updateWork(Math.max(0, workHours - 0.5))}
                           className="w-5 h-5 rounded border border-[#2c2a29]/10 bg-[#eae6db]/30 hover:bg-[#eae6db]/60 text-[10px] font-semibold text-[#2c2a29] flex items-center justify-center cursor-pointer select-none transition-colors"
                           title="Decrease hours"
                         >
@@ -475,8 +499,7 @@ export default function App() {
                             onChange={(e) => {
                               let val = parseFloat(e.target.value);
                               if (isNaN(val)) val = 0;
-                              val = Math.max(0, Math.min(14, val));
-                              setWorkHours(parseFloat(val.toFixed(1)));
+                              updateWork(Math.max(0, Math.min(14, val)));
                             }}
                             onFocus={() => setActivePouringField('work')}
                             onBlur={() => setActivePouringField(null)}
@@ -489,10 +512,7 @@ export default function App() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            const val = Math.min(14, workHours + 0.5);
-                            setWorkHours(parseFloat(val.toFixed(1)));
-                          }}
+                          onClick={() => updateWork(Math.min(14, workHours + 0.5))}
                           className="w-5 h-5 rounded border border-[#2c2a29]/10 bg-[#eae6db]/30 hover:bg-[#eae6db]/60 text-[10px] font-semibold text-[#2c2a29] flex items-center justify-center cursor-pointer select-none transition-colors"
                           title="Increase hours"
                         >
@@ -516,7 +536,7 @@ export default function App() {
                   max={6}
                   step={0.1}
                   color="#569E83"
-                  onHoursChange={setEatHours}
+                  onHoursChange={(h) => { setEatHours(h); touch('eating'); }}
                   onStartPour={() => setActivePouringField('eating')}
                   onEndPour={() => setActivePouringField(null)}
                   impactText={`Spans roughly ${((stats.remainingDays * eatHours)/24/365.25).toFixed(1)} future life years`}
@@ -531,7 +551,7 @@ export default function App() {
                   max={6}
                   step={0.1}
                   color="#8D7EA3"
-                  onHoursChange={setCommuteHours}
+                  onHoursChange={(h) => { setCommuteHours(h); touch('commute'); }}
                   onStartPour={() => setActivePouringField('commute')}
                   onEndPour={() => setActivePouringField(null)}
                   impactText={`Reduces future free window by ${((stats.remainingDays * commuteHours)/24/365.25).toFixed(1)} full years`}
@@ -546,7 +566,7 @@ export default function App() {
                   max={12}
                   step={0.1}
                   color="#C75C73"
-                  onHoursChange={setSocialHours}
+                  onHoursChange={(h) => { setSocialHours(h); touch('social'); }}
                   onStartPour={() => setActivePouringField('social')}
                   onEndPour={() => setActivePouringField(null)}
                   impactText="Pours directly out of your free days"

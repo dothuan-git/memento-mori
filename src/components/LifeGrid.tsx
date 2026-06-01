@@ -24,32 +24,72 @@ export default function LifeGrid({
   const nowIndex = Math.floor((age / lifespan) * squaresCount);
 
   const gridContainerRef = useRef<HTMLDivElement>(null);
+  // Per-cell fill fraction (0–1) we last animated TO, so we can pour only the delta.
+  const prevHeightsRef = useRef<number[]>([]);
+  // Structural signature; when it changes the whole grid remaps and we replay in full.
+  const prevLayoutRef = useRef<string>('');
 
-  // Trigger anime.js staggered fill animation whenever gridData changes
+  // Trigger anime.js staggered fill animation whenever gridData changes.
+  // Append behaviour: only the cells whose fill actually changed are (re)animated,
+  // and the stagger starts at the first changed cell — so the pour continues from
+  // the moving frontier instead of draining and refilling the entire tapestry.
   useEffect(() => {
     const container = gridContainerRef.current;
     if (!container) return;
 
-    const targets = container.querySelectorAll('.grid-cell-fill');
+    const targets = container.querySelectorAll<HTMLElement>('.grid-cell-fill');
     if (!targets || targets.length === 0) return;
 
-    // Halt any active animation on those targets to avoid racing conditions
-    remove(targets);
+    // A change to cell count / lifespan / age remaps every cell — replay from scratch.
+    const layoutKey = `${squaresCount}|${lifespan}|${age}`;
+    if (layoutKey !== prevLayoutRef.current) {
+      prevHeightsRef.current = [];
+      prevLayoutRef.current = layoutKey;
+    }
 
     // Pouring water sequence effect!
-    // We animate each square one by one sequentially down the tapestry of time.
     // e.g. for 100 squares, total duration is ~1.5 seconds, meaning ~15ms per square.
     const singleDuration = Math.max(8, Math.min(150, 1500 / squaresCount));
 
-    // Each square starts filling exactly as the previous one finishes.
-    // This mimics water cascading sequentially from glass to glass.
-    animate(targets, {
-      height: ['0%', (el: HTMLElement) => el.getAttribute('data-target-height') || '0%'],
-      opacity: [0, (el: HTMLElement) => (el.getAttribute('data-target-height') === '0%' ? 0 : 1)],
+    const prevHeights = prevHeightsRef.current;
+    const changed: HTMLElement[] = [];
+    const oldByIndex = new Map<number, number>();
+    let minChanged = Infinity;
+
+    targets.forEach((el) => {
+      const idx = parseInt(el.getAttribute('data-index') || '0');
+      const newTarget = parseFloat(el.getAttribute('data-target-height') || '0') / 100;
+      const oldTarget = prevHeights[idx] ?? 0;
+      if (Math.abs(newTarget - oldTarget) > 0.001) {
+        changed.push(el);
+        oldByIndex.set(idx, oldTarget);
+        if (idx < minChanged) minChanged = idx;
+      }
+      prevHeights[idx] = newTarget;
+    });
+
+    // Nothing grew or drained (e.g. only a gradient/color shifted) — React already
+    // repainted the background; no height animation needed.
+    if (changed.length === 0) return;
+
+    // Halt any active animation on the cells we are about to re-pour.
+    remove(changed);
+
+    // Each square starts filling exactly as the previous changed one finishes,
+    // mimicking water cascading sequentially from glass to glass.
+    animate(changed, {
+      height: [
+        (el: HTMLElement) => `${((oldByIndex.get(parseInt(el.getAttribute('data-index') || '0')) ?? 0) * 100).toFixed(1)}%`,
+        (el: HTMLElement) => el.getAttribute('data-target-height') || '0%'
+      ],
+      opacity: [
+        (el: HTMLElement) => ((oldByIndex.get(parseInt(el.getAttribute('data-index') || '0')) ?? 0) > 0 ? 1 : 0),
+        (el: HTMLElement) => (el.getAttribute('data-target-height') === '0%' ? 0 : 1)
+      ],
       duration: singleDuration,
-      delay: (el: HTMLElement, i: number) => {
-        const idx = parseInt(el.getAttribute('data-index') || i.toString());
-        return idx * singleDuration;
+      delay: (el: HTMLElement) => {
+        const idx = parseInt(el.getAttribute('data-index') || '0');
+        return (idx - minChanged) * singleDuration;
       },
       ease: 'linear' // Perfect for steady water level rising
     });
