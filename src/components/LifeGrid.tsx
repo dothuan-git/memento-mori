@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ActiveCategory } from '../types';
+import graveIcon from '@/assets/grave.png';
 // @ts-ignore
 import { animate, stagger, remove } from 'animejs';
 
@@ -220,6 +221,7 @@ export default function LifeGrid({
         >
           {gridData.map((cell, idx) => {
             const isNow = cell.isNow;
+            const isLast = cell.index === squaresCount - 1;
 
             // Is this cell actively receiving a "pour" from the active sliding category?
             const isPouringCell = activePouringField && cell.segments.some(s => s.key === activePouringField && s.width > 0.05);
@@ -255,6 +257,20 @@ export default function LifeGrid({
 {/* Now square indicator highlight */}
                 {isNow && (
                   <div className="absolute inset-0 rounded-[4px] border border-[#c8563f] animate-[pulse_1.5s_infinite] pointer-events-none z-30" />
+                )}
+
+                {/* Memento mori — a headstone marks the final square.
+                    multiply blend lets the cell's own color bleed through the grave
+                    so it looks sunken into the surface rather than floating on top. */}
+                {isLast && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                    <img
+                      src={graveIcon}
+                      alt="grave"
+                      className="w-2/3 h-2/3 object-contain"
+                      style={{ mixBlendMode: 'multiply' }}
+                    />
+                  </div>
                 )}
               </motion.div>
             );
